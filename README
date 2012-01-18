@@ -1,0 +1,3 @@
+TinyGE is a component based game engine for the Canvas element in Javscript.
+Currently it has a dependency on my 2d scenegraph library for Canvas for built-in rendering classes,
+although these are not required for usage.
