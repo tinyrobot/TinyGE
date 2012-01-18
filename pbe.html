@@ -1,0 +1,198 @@
+<html>
+<head>
+<script src="lib/jingo.tiny.js"></script>
+<script type="text/javascript">
+
+/* cross browser fixes */
+if(!this["console"]){
+	this["console"] = {log:function(){}};
+}
+
+//https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Function/bind
+if (!Function.prototype.bind) {
+  Function.prototype.bind = function (oThis) {
+    if (typeof this !== "function") {
+      // closest thing possible to the ECMAScript 5 internal IsCallable function
+      throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
+    }
+
+    var aArgs = Array.prototype.slice.call(arguments, 1), 
+        fToBind = this, 
+        fNOP = function () {},
+        fBound = function () {
+          return fToBind.apply(this instanceof fNOP
+                                 ? this
+                                 : oThis || window,
+                               aArgs.concat(Array.prototype.slice.call(arguments)));
+        };
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+
+    return fBound;
+  };
+}
+
+/* jingo */
+
+//init jingo for dependency management - change '.' to the root dir with the source for this project
+jingo.init({
+    repos: {
+        main: './src/.'
+    }
+});
+
+//add your required imports here
+jingo.anonymous({
+    require: [
+        'com.tinyrobot.flibble.display.Bitmap',
+        'com.tinyrobot.flibble.display.Sprite',
+        'com.tinyrobot.flibble.geom.Point',
+        
+        /* pbe */
+        /* managers */
+        'com.tinyrobot.tinyge.managers.ProcessManager',
+        'com.tinyrobot.tinyge.managers.SoundManager',
+        'com.tinyrobot.tinyge.managers.InputManager',
+        'com.tinyrobot.tinyge.managers.SpatialManager',
+        'com.tinyrobot.tinyge.managers.EntityManager',
+        'com.tinyrobot.tinyge.managers.ResourceManager',
+        /*components*/
+        'com.tinyrobot.tinyge.components.core.AnimatedComponent',
+        'com.tinyrobot.tinyge.components.core.TickedComponent',
+        'com.tinyrobot.tinyge.components.core.Entity',
+        'com.tinyrobot.tinyge.components.core.Spatial',
+        /*rendering */
+        'com.tinyrobot.tinyge.rendering.DisplayObjectRenderer',
+        'com.tinyrobot.tinyge.rendering.DisplayObjectScene',
+        'com.tinyrobot.tinyge.rendering.SpriteSheetRenderer',
+        /*global*/
+        'com.tinyrobot.tinyge.Globals'
+    ],
+    exec: function() {
+				/* in game */
+				
+				var PlayerController = TickedComponent.extend({
+						init: function(){
+							this._super();
+							this.speed = 0;
+							this.jumping = false;
+						},
+						onTick: function(){
+							if(Globals.inputManager.keyDown(Globals.inputManager.W)){
+								if(!this.jumping){
+									this.velocityReference.y = -4;
+									this.jumping = true;
+								}
+							}
+							if(Globals.inputManager.keyDown(Globals.inputManager.A)){
+								this.velocityReference.x -= 1;
+							}
+							if(Globals.inputManager.keyDown(Globals.inputManager.D)){
+								this.velocityReference.x += 1;
+							}
+							
+							this.velocityReference.x *= 0.8;
+							
+							if(this.positionReference.y < 400){
+								this.velocityReference.y += .3;
+							}else{
+								this.jumping = false; //this should all happen on platform collisoin tho
+								this.positionReference.y = 400;
+							}
+						}
+				});
+				
+				function createBackground(scene,image){
+					var e = new Entity();
+					
+					var d = new DisplayObjectRenderer();
+					d.displayObject = new Bitmap(image);
+					d.x = 0;
+					d.y = 0;
+					d.width = image.width;
+					d.height = image.height;
+					d.registrationPoint.x = d.width/2;
+					d.registrationPoint.y = d.height/2;
+					d.scene = scene;
+					d.layer = 1;
+					e.add("renderer",d);
+					
+					e.initialize("background");
+					return e;
+				}
+				
+				function createTest(scene,image,x,y){
+					var e = new Entity();
+					
+					var spatial = new Spatial();
+					spatial.position = new Point(x,y);
+					spatial.velocity = new Point(0,0);
+					spatial.angularVelocity = {value: 0};
+					spatial.spatialManager = Globals.spatialManager;
+					e.add("spatial",spatial);
+					
+					var d = new DisplayObjectRenderer();
+					d.displayObject = new Bitmap(image);
+					d.positionReference = spatial.position;
+					d.rotationReference = spatial.rotation;
+					d.width = image.width;
+					d.height = image.height;
+					d.registrationPoint.x = d.width/2;
+					d.registrationPoint.y = d.height/2;
+					d.scene = scene;
+					d.layer = 1;
+					scene.trackObject = d;
+					e.add("renderer",d);
+					
+					var kc = new PlayerController();
+					kc.test = spatial.test;
+					kc.velocityReference = spatial.velocity;
+					kc.positionReference = spatial.position;
+					kc.rotationReference=  spatial.rotation;
+					kc.angularVelocityReference = spatial.angularVelocity;
+					e.add("keyboardcontroller",kc);
+					
+					e.initialize("test");
+					return e;
+				}
+				
+				function createLevel(scene){
+					createBackground(scene,document.getElementById("map"));
+					createTest(scene,document.getElementById("gnu"),50,50);
+				}
+				
+        window.onload = function(){
+        	//global inits flibble
+					Globals.init("canvas");
+					
+					//global inits tinyge
+					Globals.processManager = new ProcessManager();
+					Globals.soundManager = new SoundManager();
+					Globals.inputManager = new InputManager();
+					Globals.spatialManager = new SpatialManager();
+					Globals.resourceManager = new ResourceManager();
+					Globals.entityManager = new EntityManager();
+					
+					Globals.scene = new DisplayObjectScene();
+					Globals.scene.sceneView = Globals.stage.addChild(new Sprite());
+					
+					//ui
+					//Globals.stage.addChild(new MainMenu());
+					createLevel(Globals.scene);
+					
+					Globals.processManager.start();
+        };
+    }
+});
+
+</script>
+
+</head>
+
+<body>
+<img src="res/img/map.png" id="map" style="display: none;"/>
+<img src="res/img/gnu.png" id="gnu" style="display: none;"/>
+<canvas id="canvas" width="500" height="500"></canvas>
+</body>
+</html>

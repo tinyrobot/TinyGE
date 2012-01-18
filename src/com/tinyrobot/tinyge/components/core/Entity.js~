@@ -1,0 +1,32 @@
+jingo.declare({
+	require: [
+		'util.Class',
+		'com.tinyrobot.flibble.event.EventDispatcher'
+	],
+  name: 'com.tinyrobot.tinyge.components.core.Entity',
+  as: function() {
+    Entity = EventDispatcher.extend({
+				init: function(){
+					this._super();
+					this.components = {};
+				},
+				add: function(name,c){
+					if(this.components[name]) return;
+					c.owner = this;
+					this.components[name] = c;
+					c.onAdd();
+				},
+				remove: function(name){
+					if(!this.components[name]) return;
+					this.components[name].onRemove();
+					delete this.components[name];
+				},
+				destroy: function(){
+					for(var thing in this.components){
+						this.components[thing].destroy();
+						delete this.components[thing];
+					}
+				}
+		});
+  }
+});
